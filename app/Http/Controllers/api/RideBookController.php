@@ -12,6 +12,7 @@ use App\Models\PatientCase;
 use App\Models\Ride;
 use App\Models\RideBook;
 use App\Models\User;
+use App\Services\FcmService;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
@@ -289,6 +290,7 @@ public function getHistory(Request $request)
         ->map(function ($booking) {
             return [
                 'id' => $booking->id,
+                'customer_id' => $booking->user_id,
                 'customer_name' => $booking->user->name ?? 'N/A',
                 'customer_phone' => $booking->user->phone ?? 'N/A',
                 'seat_count' => $booking->seat_count,
@@ -326,6 +328,19 @@ public function updateBookingStatus(Request $request)
 
     $booking->status = $request->status;
     $booking->save();
+
+    if ($request->status === 'accepted') {
+        $customer = User::find($booking->user_id);
+        if ($customer) {
+            app(FcmService::class)->sendToUser(
+                $customer,
+                'تم قبول طلبك',
+                'قبل السائق حجزك رقم ' . $booking->id,
+                'booking_accepted',
+                (string) $booking->id,
+            );
+        }
+    }
 
     return response()->json([
         'status' => 'success',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\FcmService;
 use App\Models\Admin;
 use App\Models\Category;
 use App\Models\File;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -31,6 +33,15 @@ class AdminHomeController extends Controller
             'password' => ['required'],
         ]);
         if (Auth::guard('web')->attempt($credentials)) {
+            $user = Auth::guard('web')->user();
+            if (!(bool) $user->is_admin) {
+                Auth::guard('web')->logout();
+                return back()->withErrors(['email' => 'هذا الحساب غير مصرح له بدخول لوحة الإدارة.'])->onlyInput('email');
+            }
+            if ((bool) ($user->is_suspended ?? false)) {
+                Auth::guard('web')->logout();
+                return back()->withErrors(['email' => 'تم إيقاف حساب المشرف مؤقتاً.'])->onlyInput('email');
+            }
             $request->session()->regenerate();
 
             return redirect()->route('admin.dashboard');
@@ -43,29 +54,59 @@ class AdminHomeController extends Controller
     }
 
     public function allUsers(Request $request)
-{
-    // نوع الفلتر: all / drivers / users
-    $filter = $request->get('type', 'all');
+    {
+        $filter = $request->get('type', 'all');
+        $segment = strtolower(trim((string) $request->get('segment', 'current')));
+        if (!in_array($segment, ['new', 'current'], true)) {
+            $segment = 'current';
+        }
+        $search = trim((string) $request->get('search', ''));
 
-    $query = User::query();
+        $query = User::query()->where(function ($q) {
+            $q->where('is_admin', 0)->orWhereNull('is_admin');
+        });
 
-    if ($filter === 'drivers') {
-        $query->where('title', 'driver');
-    } elseif ($filter === 'users') {
-        $query->where('title', 'user');
+        if ($filter === 'drivers') {
+            $query->where('title', 'driver');
+            if ($segment === 'new') {
+                $query->where(function ($q) {
+                    $q->where('is_approved', 0)->orWhereNull('is_approved');
+                });
+            } else {
+                $query->where('is_approved', 1);
+            }
+        } elseif (in_array($filter, ['users', 'customers'], true)) {
+            $query->where('title', 'user');
+        } elseif ($filter === 'merchants') {
+            $query->whereIn('title', ['merchant', 'vendor']);
+        }
+
+        if ($search !== '') {
+            $query->adminSearch($search);
+        }
+
+        $users = $query->orderByDesc('created_at')->paginate(25)->withQueryString();
+
+        $stats = [
+            'all' => User::where(function ($q) {
+                $q->where('is_admin', 0)->orWhereNull('is_admin');
+            })->count(),
+            'drivers' => User::where('title', 'driver')->count(),
+            'drivers_current' => User::where('title', 'driver')->where('is_approved', 1)->count(),
+            'drivers_new' => User::where('title', 'driver')->where(function ($q) {
+                $q->where('is_approved', 0)->orWhereNull('is_approved');
+            })->count(),
+            'users' => User::where('title', 'user')->count(),
+            'merchants' => User::whereIn('title', ['merchant', 'vendor'])->count(),
+        ];
+
+        return view('admin.sections.users.users', compact('users', 'filter', 'stats', 'segment', 'search'));
     }
 
-    $users = $query->orderBy('created_at', 'desc')->get();
-
-    // إحصائيات سريعة
-    $stats = [
-        'all'     => User::count(),
-        'drivers' => User::where('title', 'driver')->count(),
-        'users'   => User::where('title', 'user')->count(),
-    ];
-
-    return view('admin.sections.users.users', compact('users', 'filter', 'stats'));
-}
+    public function storeCase(Request $request)
+    {
+        return back()->with('error', 'حفظ الحالة غير مفعّل في هذه النسخة.');
+    }
 
 public function deleteUser($id)
 {
@@ -188,106 +229,180 @@ public function deleteUser($id)
 
     public function sendNotificationByTopic()
     {
-        $topic = 'all_users';
-        $title = 'Test Notification';
-        $body = 'This is a test notification sent to all users.';
+        $users = User::where('is_admin', 0)
+            ->orderBy('name')
+            ->limit(500)
+            ->get(['id', 'name', 'phone', 'title']);
 
-        $message = [
-            'title' => $title,
-            'body' => $body,
-        ];
+        $fcm = app(FcmService::class);
 
-        // Send the notification
-        // $response = FCM::sendToTopic($topic, null, null, $message);
-        return view('admin.sections.settings.push_notify');
-        return response()->json([
-            'status_code' => 200,
-            'message' => 'Notification sent successfully',
-            'response' => $response,
+        return view('admin.sections.settings.push_notify', [
+            'topic' => $fcm->topic(),
+            'users' => $users,
+            'fcmReady' => $fcm->credentialsPath() !== null,
+            'fcmExpectedPath' => storage_path(
+                (string) config('services.firebase.credentials_storage')
+            ),
+            'debtorsCount' => $this->debtorsQuery('all', 0.01)->count(),
         ]);
     }
-    public function sendNotificationToTopicPost(Request $request)
+
+    /** عمود المديونية المتاح في جدول المستخدمين. */
+    private function duesColumn(): ?string
     {
-        $projectId = 'quickmart-fbc37';
-
-        $accessToken = $this->getAccessToken();
-
-        if (!$accessToken) {
-            return response()->json(["error" => "Failed to retrieve access token"], 500);
+        foreach (['dues_balance', 'due_amount'] as $column) {
+            if (Schema::hasColumn('users', $column)) {
+                return $column;
+            }
         }
 
-        // if($request->type == 'new_branch'){
-        //     Message::create([
-        //         'title' => $request->head,
-        //         'body' => $request->desc,
-        //         'type' => $request->type,
-        //         'table_id' => 1,
-        //     ]);
-        // }
-
-
-        $url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send";
-
-        $data = [
-            "message" => [
-                // "topic" => $request->topic,
-                "topic" => 'motorent',
-                "data" => [
-                    'head' => $request->head,
-                    'desc' => $request->desc,
-                    'mtopic' => $request->mtopic,
-                    // 'action' => $request->action,
-                    'action' => 'open',
-                    // 'url' => $request->url,
-                    'url' => '',
-                ],
-            ]
-        ];
-
-        $response = Http::withHeaders([ 
-            'Authorization' => 'Bearer ' . $accessToken,
-            'Content-Type' => 'application/json'
-        ])->post($url, $data);
-
-        return redirect()->route('admin.send_notification_by_topic_get');
-        return print_r($accessToken);
-        return view('admin.sections.settings.push_notify');
-        return $response->json();
+        return null;
     }
-    public function getAccessToken(): ?string
-    {
-        $keyFilePath = storage_path('app/firebase/quickmart-fbc37-firebase-adminsdk-fbsvc-e65b3f0332.json');
 
-        if (!file_exists($keyFilePath)) {
-            return null;
+    /** المستخدمون الذين عليهم مديونية أكبر من حد معيّن. */
+    private function debtorsQuery(string $scope, float $minAmount)
+    {
+        $column = $this->duesColumn();
+        if ($column === null) {
+            return User::query()->whereRaw('1 = 0');
         }
 
-        $googleAuthUrl = "https://oauth2.googleapis.com/token";
+        $titles = match ($scope) {
+            'drivers' => ['driver'],
+            'merchants' => ['merchant', 'vendor'],
+            default => ['driver', 'merchant', 'vendor'],
+        };
 
-        $serviceAccount = json_decode(file_get_contents($keyFilePath), true);
+        return User::query()
+            ->whereIn('title', $titles)
+            ->where($column, '>=', $minAmount)
+            ->orderByDesc($column);
+    }
 
-        $jwtHeader = base64_encode(json_encode(["alg" => "RS256", "typ" => "JWT"]));
-
-        $iat = time();
-        $exp = $iat + 3600;
-
-        $jwtPayload = base64_encode(json_encode([
-            "iss" => $serviceAccount["client_email"],
-            "scope" => "https://www.googleapis.com/auth/firebase.messaging",
-            "aud" => $googleAuthUrl,
-            "exp" => $exp,
-            "iat" => $iat
-        ]));
-
-        $signature = "";
-        openssl_sign("$jwtHeader.$jwtPayload", $signature, openssl_pkey_get_private($serviceAccount["private_key"]), OPENSSL_ALGO_SHA256);
-        $jwtAssertion = "$jwtHeader.$jwtPayload." . base64_encode($signature);
-
-        $response = Http::post($googleAuthUrl, [
-            "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer",
-            "assertion" => $jwtAssertion
+    public function sendNotificationToTopicPost(Request $request, FcmService $fcmService)
+    {
+        $request->validate([
+            'head' => 'nullable|string|max:255',
+            'desc' => 'nullable|string|max:2000',
+            'title' => 'nullable|string|max:255',
+            'body' => 'nullable|string|max:2000',
+            'action' => 'nullable|string|max:50',
+            'url' => 'nullable|string|max:500',
+            'audience' => 'required|in:all,customers,drivers,merchants,user,debtors',
+            'user_id' => 'nullable|exists:users,id',
+            'debtors_scope' => 'nullable|in:all,drivers,merchants',
+            'debtors_min_amount' => 'nullable|numeric|min:0',
         ]);
 
-        return $response->json()["access_token"] ?? null;
+        $title = trim((string) ($request->input('head') ?: $request->input('title')));
+        $body = trim((string) ($request->input('desc') ?: $request->input('body')));
+        $action = trim((string) $request->input('action', 'general')) ?: 'general';
+        $url = trim((string) $request->input('url', ''));
+        $audience = $request->input('audience', 'all');
+
+        if ($title === '' || $body === '') {
+            return redirect()
+                ->route('admin.send_notification_by_topic_get')
+                ->with('error', 'عنوان الإشعار ونص الإشعار مطلوبان');
+        }
+
+        if ($audience === 'user') {
+            $user = User::findOrFail($request->input('user_id'));
+            $result = $fcmService->sendToUser($user, $title, $body, $action, $url ?: null, $url ?: null);
+            $message = $result['success']
+                ? 'تم إرسال الإشعار للمستخدم المحدد'
+                : ($result['error'] ?? 'فشل إرسال الإشعار');
+
+            return redirect()->route('admin.send_notification_by_topic_get')
+                ->with($result['success'] ? 'success' : 'error', $message);
+        }
+
+        if ($audience === 'debtors') {
+            $column = $this->duesColumn();
+            if ($column === null) {
+                return redirect()->route('admin.send_notification_by_topic_get')
+                    ->with('error', 'لا يوجد عمود مديونيات في جدول المستخدمين');
+            }
+
+            $minAmount = max(0.01, (float) $request->input('debtors_min_amount', 0));
+            $targets = $this->debtorsQuery($request->input('debtors_scope', 'all'), $minAmount)
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->get();
+
+            if ($targets->isEmpty()) {
+                return redirect()->route('admin.send_notification_by_topic_get')
+                    ->with('error', 'لا يوجد مستخدمون عليهم مديونية بهذا الحد لديهم إشعارات مفعّلة');
+            }
+
+            $sent = 0;
+            foreach ($targets as $user) {
+                // {amount} و {name} تُستبدل بقيمة كل مستخدم على حدة.
+                $amount = number_format((float) $user->{$column}, 2);
+                $replacements = ['{amount}' => $amount, '{name}' => (string) $user->name];
+                $personalTitle = strtr($title, $replacements);
+                $personalBody = strtr($body, $replacements);
+
+                $res = $fcmService->sendToUser(
+                    $user,
+                    $personalTitle,
+                    $personalBody,
+                    $action,
+                    $url ?: null,
+                    $url ?: null
+                );
+                if ($res['success'] ?? false) {
+                    $sent++;
+                }
+            }
+
+            return redirect()->route('admin.send_notification_by_topic_get')
+                ->with('success', "تم إرسال الإشعار إلى {$sent} من أصحاب المديونيات");
+        }
+
+        if ($audience !== 'all') {
+            $titleFilter = match ($audience) {
+                'drivers' => 'driver',
+                'merchants' => 'merchant',
+                default => 'user',
+            };
+
+            $targets = User::where('title', $titleFilter)
+                ->whereNotNull('fcm_token')
+                ->where('fcm_token', '!=', '')
+                ->get();
+
+            $sent = 0;
+            foreach ($targets as $user) {
+                $res = $fcmService->sendToUser($user, $title, $body, $action, $url ?: null, $url ?: null);
+                if ($res['success'] ?? false) {
+                    $sent++;
+                }
+            }
+
+            return redirect()->route('admin.send_notification_by_topic_get')
+                ->with('success', "تم إرسال الإشعار إلى {$sent} مستخدم");
+        }
+
+        $result = $fcmService->sendToTopic($title, $body, null, $action, $url ?: null, $url ?: null);
+
+        if ($result['success']) {
+            return redirect()
+                ->route('admin.send_notification_by_topic_get')
+                ->with('success', 'تم إرسال الإشعار لجميع مستخدمي التطبيق بنجاح');
+        }
+
+        return redirect()
+            ->route('admin.send_notification_by_topic_get')
+            ->with('error', $result['error'] ?? 'فشل إرسال الإشعار');
+    }
+
+    public function logout(Request $request)
+    {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('admin.login');
     }
 }

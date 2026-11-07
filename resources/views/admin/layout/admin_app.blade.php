@@ -161,107 +161,98 @@
 
         <ul class="sidebar-nav" data-coreui="navigation" data-simplebar="">
 
-            {{-- لوحة التحكم --}}
             <li class="nav-item">
                 <a class="nav-link" href="{{ route('admin.dashboard') }}">
-                    <svg class="nav-icon">
-                        <use
-                            xlink:href="{{ asset('/public/admin/vendors/@coreui/icons/svg/free.svg') }}#cil-speedometer">
-                        </use>
-                    </svg>
-                    لوحة التحكم
+                    <i class="bi bi-speedometer2"></i> الرئيسية / الإحصائيات
                 </a>
             </li>
 
             <li class="nav-title">الإدارة</li>
 
-            {{-- التجار (المطاعم) --}}
             <li class="nav-item nav-group">
-                <a class="nav-link nav-group-toggle" href="#">
-                    <i class="bi bi-shop"></i> المستخدمين
-                </a>
+                <a class="nav-link nav-group-toggle" href="#"><i class="bi bi-people"></i> المستخدمين</a>
                 <ul class="nav-group-items">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.register_request.index') }}">
-                            <i class="bi bi-list-ul"></i> قائمة طلبات التسجبل
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.user.index') }}">
-                            <i class="bi bi-list-ul"></i> كل المستخدمين
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.user.index') }}">كل المستخدمين</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.user.index', ['type' => 'users']) }}">العملاء</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.user.index', ['type' => 'drivers', 'segment' => 'current']) }}">سائقين حاليين</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.user.index', ['type' => 'drivers', 'segment' => 'new']) }}">سائقين لسه ما تمش مراجعتهم</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.user.index', ['type' => 'merchants']) }}">أصحاب النشاط</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.register_request.index') }}">طلبات التسجيل</a></li>
                 </ul>
             </li>
 
-            {{-- الكباتن (السائقون) --}}
             <li class="nav-item nav-group">
-                <a class="nav-link nav-group-toggle" href="#">
-                    <i class="bi bi-people"></i> الخطط
-                </a>
+                <a class="nav-link nav-group-toggle" href="#"><i class="bi bi-grid"></i> الأقسام</a>
                 <ul class="nav-group-items">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.plans.index') }}">
-                            <i class="bi bi-person-badge"></i> قائمة الخطط
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.plans.create') }}">
-                            <i class="bi bi-plus-circle"></i> إضافة خطة
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.categories.index') }}">قائمة الأقسام</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.categories.create') }}">إضافة قسم</a></li>
                 </ul>
             </li>
 
-            {{-- الكباتن (السائقون) --}}
-            <li class="nav-item nav-group">
-                <a class="nav-link nav-group-toggle" href="#">
-                    <i class="bi bi-people"></i> الأماكن
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.products.index') }}">
+                    <i class="bi bi-box-seam"></i> منتجات أصحاب النشاط
                 </a>
+            </li>
+
+            <li class="nav-item nav-group">
+                <a class="nav-link nav-group-toggle" href="#"><i class="bi bi-shop"></i> المتاجر وطلباتها</a>
                 <ul class="nav-group-items">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.locations.index') }}">
-                            <i class="bi bi-person-badge"></i> قائمة مكان
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.locations.create') }}">
-                            <i class="bi bi-plus-circle"></i> إضافة مكان
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.merchants.index') }}">المتاجر</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.service_orders.index') }}">طلبات الخدمات</a></li>
                 </ul>
             </li>
 
-     
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.vehicle_types.index') }}">
+                    <i class="bi bi-truck"></i> وسائل النقل والنطاق
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.commission.edit') }}">
+                    <i class="bi bi-cash-coin"></i> العمولة والمستحقات
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.payment_settings.edit') }}">
+                    <i class="bi bi-wallet2"></i> طرق الدفع
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.send_notification_by_topic_get') }}">
+                    <i class="bi bi-bell"></i> الإشعارات
+                </a>
+            </li>
 
             <li class="nav-item nav-group">
-                <a class="nav-link nav-group-toggle" href="#"><i class="bi bi-gear"></i> الإعدادات</a>
-
-                {{-- <ul class="nav-group-items">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.roles.index') }}">
-                            <i class="bi bi-shield-lock"></i> الأدوار
-                        </a>
-                    </li>
-                </ul>
-
+                <a class="nav-link nav-group-toggle" href="#"><i class="bi bi-shield-lock"></i> المشرفون</a>
                 <ul class="nav-group-items">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('admin.permissions.index') }}">
-                            <i class="bi bi-key"></i> الصلاحيات
-                        </a>
-                    </li>
-                </ul> --}}
-
-                <ul class="nav-group-items">
-                    <li class="nav-item">
-                        {{-- <a class="nav-link" href="{{ route('admin.push_notifications.form') }}"> --}}
-                        <a class="nav-link" href="{{ route('admin.send_notification_by_topic_get') }}">
-                            <i class="bi bi-key"></i> الإشعارات
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.admins.index') }}">قائمة المشرفين</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.admins.create') }}">إضافة مشرف</a></li>
                 </ul>
+            </li>
+
+            <li class="nav-item nav-group">
+                <a class="nav-link nav-group-toggle" href="#"><i class="bi bi-file-earmark-text"></i> مستندات التسجيل</a>
+                <ul class="nav-group-items">
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.documents.index') }}">قائمة المستندات</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.documents.create') }}">إضافة مستند</a></li>
+                </ul>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.welcome_settings.edit') }}">
+                    <i class="bi bi-window"></i> شاشة الترحيب
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.password.edit') }}">
+                    <i class="bi bi-key"></i> تغيير كلمة المرور
+                </a>
             </li>
 
         </ul>
@@ -347,7 +338,18 @@
                                     alt="المستخدم">
                             </div>
                         </a>
-                        {{-- يمكنك إضافة قائمة حساب المستخدم هنا --}}
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text">{{ auth()->user()?->name }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('admin.password.edit') }}">تغيير كلمة المرور</a>
+                            </li>
+                            <li>
+                                <form method="POST" action="{{ route('admin.logout') }}">@csrf
+                                    <button type="submit" class="dropdown-item">تسجيل الخروج</button>
+                                </form>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
             </div>

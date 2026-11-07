@@ -25,6 +25,24 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
+    ],
+
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID', 'app1-8687c'),
+        'topic' => env('FIREBASE_TOPIC', 'motorent'),
+        'credentials' => env('FIREBASE_CREDENTIALS'),
+        'credentials_storage' => env(
+            'FIREBASE_CREDENTIALS_STORAGE',
+            'app/firebase/app1-8687c-firebase-adminsdk.json'
+        ),
+    ],
+
+    'wallet' => [
+        'transfer_number' => env('WALLET_TRANSFER_NUMBER'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

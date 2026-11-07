@@ -30,6 +30,7 @@ class RideBook extends Model
         'msg',
         'pick_loc',
         'target_loc',
+        'trip_request_id',
         'status',
         'created_at',
   

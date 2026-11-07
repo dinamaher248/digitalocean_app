@@ -76,9 +76,17 @@ class ChatController extends Controller
     {
         $request->validate([
             'receiver_id' => 'required|exists:users,id',
-            'ride_id' => 'required|exists:ride,id',
-            'message' => 'required|string'
+            'ride_id' => 'required|integer|exists:ride_book,id',
+            'message' => 'required|string',
         ]);
+
+        $booking = \App\Models\RideBook::find($request->ride_id);
+        if ($booking && in_array((string) $booking->status, ['completed', 'cancelled', 'canceled'], true)) {
+            return response()->json([
+                'status_code' => 422,
+                'message' => 'تم إغلاق المحادثة بعد إنهاء الطلب',
+            ], 422);
+        }
 
         $message = Messages::create([
             'sender_id' => Auth::guard('api')->user()->id,
@@ -91,8 +99,6 @@ class ChatController extends Controller
             'status_code' => 200,
             'message' => $message
         ], 200);
-
-        return response()->json(['success' => true, 'message' => $message]);
     }
 
 

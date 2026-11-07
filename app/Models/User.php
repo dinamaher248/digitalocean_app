@@ -27,6 +27,7 @@ class User extends Authenticatable implements JWTSubject
     'title',
     'coins',
     'is_admin',
+    'admin_permissions',
     'nid_image',
     'license_image',
     'image',
@@ -35,9 +36,22 @@ class User extends Authenticatable implements JWTSubject
     'area',
     'is_paid',
     'is_approved',
+    'is_suspended',
     'subscription_end_date',
     'is_online',
+    'current_lat',
+    'current_lng',
+    'location_updated_at',
     'governorate',
+    'governorate_id',
+    'area_id',
+    'location_id',
+    'fcm_token',
+    'dues_balance',
+    'commission_rate',
+    'vendor_billing_mode',
+    'avg_rating',
+    'ratings_count',
   ];
 
   /**
@@ -57,7 +71,8 @@ class User extends Authenticatable implements JWTSubject
    */
   protected $casts = [
     'email_verified_at' => 'datetime',
-    'password' => 'hashed',
+    'is_suspended' => 'boolean',
+    'admin_permissions' => 'array',
   ];
 
   public function rideBooks()
@@ -107,5 +122,40 @@ public function area()
 {
   return $this->belongsTo(\App\Models\Location::class, 'area_id');
 }
+
+public function ownedMerchant()
+{
+  return $this->hasOne(Merchant::class, 'owner_user_id');
+}
+
+  /**
+   * بحث لوحة الإدارة: رقم المستخدم أو الهاتف أو الاسم أو البريد.
+   */
+  public function scopeAdminSearch($query, ?string $term)
+  {
+    $term = trim((string) $term);
+    if ($term === '') {
+      return $query;
+    }
+
+    $idTerm = ltrim($term, '#');
+    if (ctype_digit($idTerm) && strlen($idTerm) <= 9) {
+      return $query->where($this->getTable().'.id', (int) $idTerm);
+    }
+
+    $digits = preg_replace('/\D+/', '', $term) ?: $term;
+
+    return $query->where(function ($q) use ($term, $digits) {
+      $q->where('phone', 'like', '%'.$term.'%')
+        ->orWhere('name', 'like', '%'.$term.'%')
+        ->orWhere('email', 'like', '%'.$term.'%');
+      if (\Illuminate\Support\Facades\Schema::hasColumn($this->getTable(), 'username')) {
+        $q->orWhere('username', 'like', '%'.$term.'%');
+      }
+      if ($digits !== $term && strlen($digits) >= 3) {
+        $q->orWhere('phone', 'like', '%'.$digits.'%');
+      }
+    });
+  }
 
 }

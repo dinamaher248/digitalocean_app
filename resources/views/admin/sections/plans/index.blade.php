@@ -29,7 +29,10 @@
                         <th>السعر الأساسي</th>
                         <th>قيمة الخصم</th>
                         <th>السعر بعد الخصم</th>
-                        <th>مدة الخطة (أيام)</th>
+                        <th>مدة الخطة</th>
+                        <th>السائقين</th>
+                        <th>أصحاب النشاط</th>
+                        <th>الحالة</th>
                         <th>تاريخ الإضافة</th>
                         <th style="width: 150px;">العمليات</th>
                     </tr>
@@ -46,6 +49,13 @@
                             <td>{{ number_format($plan->offer) }} جنيه</td>
                             <td><strong>{{ number_format($finalPrice) }} جنيه</strong></td>
                             <td>{{ $plan->days }} يوم</td>
+                            <td>{{ ($plan->for_drivers ?? true) ? '✓' : '—' }}</td>
+                            <td>{{ ($plan->for_merchants ?? false) ? '✓' : '—' }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('admin.plans.toggle', $plan) }}" class="d-inline">@csrf
+                                    <button class="btn btn-sm {{ ($plan->is_active ?? true) ? 'btn-success' : 'btn-secondary' }}">{{ ($plan->is_active ?? true) ? 'مفعّلة' : 'موقوفة' }}</button>
+                                </form>
+                            </td>
                             <td>{{ $plan->created_at?->format('Y-m-d') }}</td>
                             <td>
                                 <div class="d-flex gap-2">
@@ -67,7 +77,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center">
+                            <td colspan="11" class="text-center">
                                 لا توجد خطط مسجلة حتى الآن.
                             </td>
                         </tr>

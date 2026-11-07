@@ -25,22 +25,33 @@ class RideController extends Controller
 
    public function getPlans()
 {
-    $plans = Plan::all();
+    try {
+        $plans = Plan::orderBy('price')->get();
+    } catch (\Throwable $e) {
+        $plans = collect();
+    }
 
     $user = Auth::guard('api')->user();
+    $subscription = null;
 
-    $subscription = Subscription::where('user_id', $user->id)
-                    ->where('status', 'pending')
-                    ->orWhere(function($query) use ($user) {
-                        $query->where('user_id', $user->id)
-                              ->where('status', 'approved');
-                    })
-                    ->latest()
-                    ->first();
+    if ($user) {
+        try {
+            $subscription = Subscription::where('user_id', $user->id)
+                ->where(function ($query) {
+                    $query->where('status', 'pending')
+                        ->orWhere('status', 'approved');
+                })
+                ->latest()
+                ->first();
+        } catch (\Throwable $e) {
+            $subscription = null;
+        }
+    }
 
     return response()->json([
-        'plans' => $plans,
-        'subscription' => $subscription
+        'status_code' => 200,
+        'plans' => $plans->values(),
+        'subscription' => $subscription,
     ]);
 }
 

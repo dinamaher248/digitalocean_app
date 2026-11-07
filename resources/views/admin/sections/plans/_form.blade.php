@@ -41,15 +41,15 @@
 <div class="row">
     <div class="col-md-3 mb-3">
         <label class="form-label">مدة الخطة (أيام) <span class="text-danger">*</span></label>
-        <input type="number"
-               name="days"
-               min="1"
-               class="form-control @error('days') is-invalid @enderror"
-               value="{{ old('days', $plan->days ?? 30) }}">
-        @error('days')
-            <div class="invalid-feedback">{{ $message }}</div>
-        @enderror
+        <input type="number" name="days" min="1" class="form-control" value="{{ old('days', $plan->days ?? 30) }}">
     </div>
+    <div class="col-md-3 mb-3 d-flex align-items-end">
+        <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" id="is_active" {{ old('is_active', $plan->is_active ?? true) ? 'checked' : '' }}><label for="is_active">الخطة مفعّلة</label></div>
+    </div>
+</div>
+<div class="row mb-3">
+    <div class="col-md-4"><div class="form-check"><input type="checkbox" name="for_drivers" value="1" class="form-check-input" id="for_drivers" {{ old('for_drivers', $plan->for_drivers ?? true) ? 'checked' : '' }}><label for="for_drivers">متاحة للسائقين</label></div></div>
+    <div class="col-md-4"><div class="form-check"><input type="checkbox" name="for_merchants" value="1" class="form-check-input" id="for_merchants" {{ old('for_merchants', $plan->for_merchants ?? false) ? 'checked' : '' }}><label for="for_merchants">متاحة لأصحاب النشاط</label></div></div>
 </div>
 
 <hr>

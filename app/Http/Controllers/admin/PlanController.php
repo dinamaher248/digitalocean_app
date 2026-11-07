@@ -28,6 +28,9 @@ class PlanController extends Controller
             'price' => 'required|integer|min:0',
             'offer' => 'required|integer|min:0',
             'days'  => 'required|integer|min:1',
+            'is_active' => 'nullable|boolean',
+            'for_drivers' => 'nullable|boolean',
+            'for_merchants' => 'nullable|boolean',
         ], [
             'name.required'  => 'اسم الخطة مطلوب',
             'price.required' => 'السعر مطلوب',
@@ -35,7 +38,12 @@ class PlanController extends Controller
             'days.required'  => 'عدد الأيام مطلوب',
         ]);
 
-        Plan::create($data);
+        Plan::create([
+            ...$data,
+            'is_active' => $request->boolean('is_active', true),
+            'for_drivers' => $request->boolean('for_drivers', true),
+            'for_merchants' => $request->boolean('for_merchants', false),
+        ]);
 
         return redirect()
             ->route('admin.plans.index')
@@ -54,6 +62,9 @@ class PlanController extends Controller
             'price' => 'required|integer|min:0',
             'offer' => 'required|integer|min:0',
             'days'  => 'required|integer|min:1',
+            'is_active' => 'nullable|boolean',
+            'for_drivers' => 'nullable|boolean',
+            'for_merchants' => 'nullable|boolean',
         ], [
             'name.required'  => 'اسم الخطة مطلوب',
             'price.required' => 'السعر مطلوب',
@@ -61,11 +72,23 @@ class PlanController extends Controller
             'days.required'  => 'عدد الأيام مطلوب',
         ]);
 
-        $plan->update($data);
+        $plan->update([
+            ...$data,
+            'is_active' => $request->boolean('is_active'),
+            'for_drivers' => $request->boolean('for_drivers'),
+            'for_merchants' => $request->boolean('for_merchants'),
+        ]);
 
         return redirect()
             ->route('admin.plans.index')
             ->with('success', 'تم تحديث بيانات الخطة بنجاح.');
+    }
+
+    public function toggle(Plan $plan)
+    {
+        $plan->update(['is_active' => !$plan->is_active]);
+
+        return back()->with('success', 'تم تحديث حالة الخطة');
     }
 
     public function destroy(Plan $plan)

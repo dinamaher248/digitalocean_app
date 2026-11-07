@@ -27,8 +27,17 @@ class Plan extends Model
         'price',
         'offer',
         'days',
+        'is_active',
+        'for_drivers',
+        'for_merchants',
         'created_at',
   
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'for_drivers' => 'boolean',
+        'for_merchants' => 'boolean',
     ];
 
     /**

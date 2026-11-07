@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\KoshyApp;
 use App\Models\PatientCase;
 use App\Models\RideBook;
+use App\Models\Setting;
 use App\Models\User;
+use App\Services\WelcomeScreenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class ApiHomeController extends Controller
@@ -229,19 +232,42 @@ class ApiHomeController extends Controller
     
      public function getKoshyApp()
     {
-        try {
-            $cases = KoshyApp::all()->first();
+        $phone = null;
 
-            return response()->json([
-                'status_code' => 200,
-                'message' => $cases
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status_code' => 500,
-                'message' => $e->getMessage(),
-            ]);
+        try {
+            if (Schema::hasTable('settings')) {
+                $phone = Setting::getValue('wallet_number');
+            }
+        } catch (\Throwable $e) {
+            // Ignore and try fallback sources.
         }
+
+        if (empty($phone)) {
+            try {
+                $phone = KoshyApp::query()->value('phone');
+            } catch (\Throwable $e) {
+                // Ignore and try env fallback.
+            }
+        }
+
+        if (empty($phone)) {
+            $phone = config('services.wallet.transfer_number');
+        }
+
+        return response()->json([
+            'status_code' => 200,
+            'wallet_number' => $phone,
+            'message' => [
+                'phone' => $phone,
+                'wallet_number' => $phone,
+                'value' => $phone,
+            ],
+        ]);
+    }
+
+    public function getWelcomeScreen()
+    {
+        return response()->json(WelcomeScreenService::apiPayload());
     }  
 
     
@@ -295,5 +321,35 @@ class ApiHomeController extends Controller
           'status_code' => 200,
           'message' => 'ok'
         ], 200);
+    }
+
+    public function requiredDocuments(\Illuminate\Http\Request $request)
+    {
+        $role = strtolower(trim((string) $request->query('role', $request->query('audience', 'driver'))));
+        $vehicleType = trim((string) $request->query('vehicle_type', ''));
+        $vehicleType = $vehicleType !== '' ? $vehicleType : null;
+        $hubSection = strtolower(trim((string) $request->query('hub_section', $request->query('vendor_hub_section', ''))));
+        $hubSection = in_array($hubSection, ['orders', 'bookings', 'services'], true) ? $hubSection : null;
+
+        try {
+            $items = \App\Models\RegistrationDocument::forRegistrationApi($role, $vehicleType, $hubSection);
+
+            return response()->json([
+                'status' => true,
+                'status_code' => 200,
+                'data' => $items,
+                'documents' => $items,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('requiredDocuments failed: '.$e->getMessage());
+            $items = \App\Models\RegistrationDocument::fallbackRegistrationDocuments($role);
+
+            return response()->json([
+                'status' => true,
+                'status_code' => 200,
+                'data' => $items,
+                'documents' => $items,
+            ]);
+        }
     }
 }

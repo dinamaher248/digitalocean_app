@@ -2,155 +2,141 @@
 
 @section('content')
 <div class="container-fluid">
+    <h2 class="mb-3">إدارة المستخدمين</h2>
+    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+    @php
+        $segment = $segment ?? 'current';
+        $search = $search ?? '';
+        $filter = $filter ?? 'all';
+        $cardClass = function ($active) {
+            return $active
+                ? 'card text-center p-3 text-decoration-none border-primary bg-primary text-white h-100'
+                : 'card text-center p-3 text-decoration-none text-body h-100';
+        };
+    @endphp
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0">إدارة المستخدمين</h2>
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <a class="{{ $cardClass($filter === 'all') }}" href="{{ route('admin.user.index', ['type' => 'all']) }}">
+                <small>الكل</small>
+                <h4 class="mb-0">{{ $stats['all'] ?? 0 }}</h4>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a class="{{ $cardClass($filter === 'users') }}" href="{{ route('admin.user.index', ['type' => 'users']) }}">
+                <small>عملاء</small>
+                <h4 class="mb-0">{{ $stats['users'] ?? 0 }}</h4>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a class="{{ $cardClass($filter === 'drivers') }}" href="{{ route('admin.user.index', ['type' => 'drivers', 'segment' => 'current']) }}">
+                <small>سائقون</small>
+                <h4 class="mb-0">{{ $stats['drivers'] ?? 0 }}</h4>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a class="{{ $cardClass($filter === 'merchants') }}" href="{{ route('admin.user.index', ['type' => 'merchants']) }}">
+                <small>أصحاب نشاط</small>
+                <h4 class="mb-0">{{ $stats['merchants'] ?? 0 }}</h4>
+            </a>
+        </div>
     </div>
 
-    {{-- إشعارات فلاش للنجاح أو الخطأ --}}
-    @if(session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
+    @if($filter === 'drivers')
+    <div class="mb-3 p-3 rounded border-start border-4 border-primary bg-body-tertiary">
+        <div class="small text-muted mb-2">تحت السائقين:</div>
+        <div class="btn-group flex-wrap" role="group">
+            <a href="{{ route('admin.user.index', array_filter(['type' => 'drivers', 'segment' => 'current', 'search' => $search ?: null])) }}"
+               class="btn {{ $segment === 'current' ? 'btn-primary' : 'btn-outline-primary' }}">
+                سائقين حاليين (معتمدين) — {{ $stats['drivers_current'] ?? 0 }}
+            </a>
+            <a href="{{ route('admin.user.index', array_filter(['type' => 'drivers', 'segment' => 'new', 'search' => $search ?: null])) }}"
+               class="btn {{ $segment === 'new' ? 'btn-warning' : 'btn-outline-warning' }}">
+                سائقين لسه ما تمش مراجعتهم — {{ $stats['drivers_new'] ?? 0 }}
+            </a>
         </div>
+    </div>
     @endif
-    @if(session('error'))
-        <div class="alert alert-danger">
-            {{ session('error') }}
-        </div>
-    @endif
 
-    {{-- كروت الإحصائيات --}}
-    <div class="row mb-3">
-        <div class="col-md-4 mb-2">
-            <div class="card text-center shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted mb-1">إجمالي المستخدمين</h6>
-                    <h3 class="mb-0">{{ $stats['all'] ?? $users->count() }}</h3>
-                </div>
-            </div>
+    <form method="GET" class="mb-3">
+        <input type="hidden" name="type" value="{{ $filter }}">
+        @if($filter === 'drivers')
+            <input type="hidden" name="segment" value="{{ $segment }}">
+        @endif
+        <div class="input-group">
+            <input type="text" name="search" class="form-control"
+                   placeholder="بحث بالاسم أو الهاتف أو البريد أو رقم المستخدم"
+                   value="{{ $search }}">
+            <button type="submit" class="btn btn-primary">بحث</button>
+            @if($search !== '')
+                <a href="{{ route('admin.user.index', array_filter(['type' => $filter, 'segment' => $filter === 'drivers' ? $segment : null])) }}"
+                   class="btn btn-outline-secondary">مسح</a>
+            @endif
         </div>
-        <div class="col-md-4 mb-2">
-            <div class="card text-center shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted mb-1">عدد السائقين</h6>
-                    <h3 class="mb-0">{{ $stats['drivers'] ?? 0 }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-2">
-            <div class="card text-center shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted mb-1">عدد العملاء</h6>
-                    <h3 class="mb-0">{{ $stats['users'] ?? 0 }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
+        @if($search !== '')
+            <div class="form-text">نتائج البحث عن: <strong>{{ $search }}</strong></div>
+        @endif
+    </form>
 
-    {{-- تبويبات الفلتر: الكل / السائقون / العملاء --}}
-    <ul class="nav nav-pills mb-3">
-        <li class="nav-item">
-            <a class="nav-link {{ $filter === 'all' ? 'active' : '' }}"
-               href="{{ route('admin.user.index', ['type' => 'all']) }}">
-                الكل
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ $filter === 'drivers' ? 'active' : '' }}"
-               href="{{ route('admin.user.index', ['type' => 'drivers']) }}">
-                السائقون
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {{ $filter === 'users' ? 'active' : '' }}"
-               href="{{ route('admin.user.index', ['type' => 'users']) }}">
-                العملاء
-            </a>
-        </li>
-    </ul>
-
-    <div class="card">
-        <div class="card-body">
-            <table id="usersTable" class="display table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>الاسم</th>
-                        <th>البريد الإلكتروني</th>
-                        <th>رقم الهاتف</th>
-                        <th>النوع</th>
-                        <th>تاريخ الإنشاء</th>
-                        <th>إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($users as $user)
-                        <tr>
-                            <td>{{ $user->id }}</td>
-                            <td>{{ $user->name }}</td>
-                            <td>{{ $user->email }}</td>
-                            <td>{{ $user->phone }}</td>
-                            <td>
-                                @if($user->title === 'driver')
-                                    <span class="badge bg-info">سائق</span>
-                                @else
-                                    <span class="badge bg-secondary">عميل</span>
-                                @endif
-                            </td>
-                            <td>{{ $user->created_at?->format('Y-m-d') }}</td>
-                            <td>
-                                <a href="{{ route('admin.user.delete', [$user->id]) }}"
-                                   class="btn btn-sm btn-danger"
-                                   onclick="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
-                                    حذف
-                                </a>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-
+    <div class="card"><div class="card-body table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead><tr><th>#</th><th>الاسم</th><th>البريد</th><th>الهاتف</th><th>النوع</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+            <tbody>
+                @forelse($users as $user)
+                <tr>
+                    <td>{{ $user->id }}</td>
+                    <td>{{ $user->name }}</td>
+                    <td>{{ $user->email }}</td>
+                    <td>{{ $user->phone }}</td>
+                    <td>
+                        @if($user->title === 'driver')<span class="badge bg-info">سائق</span>
+                        @elseif(in_array($user->title, ['merchant', 'vendor'], true))<span class="badge bg-primary">صاحب نشاط</span>
+                        @else<span class="badge bg-secondary">عميل</span>@endif
+                    </td>
+                    <td>
+                        @if($user->is_suspended)<span class="badge bg-danger">موقوف</span>
+                        @elseif($user->is_approved)<span class="badge bg-success">معتمد</span>
+                        @else<span class="badge bg-warning">معلق — بانتظار المراجعة</span>@endif
+                    </td>
+                    <td>
+                        <a href="{{ route('admin.user.details', $user->id) }}" class="btn btn-sm btn-primary">مراجعة</a>
+                        @if(in_array($user->title, ['merchant', 'vendor'], true))
+                            @if($user->ownedMerchant)
+                                <a href="{{ route('admin.products.index', ['merchant_id' => $user->ownedMerchant->id]) }}" class="btn btn-sm btn-info">عرض المنتجات</a>
+                            @else
+                                <a href="{{ route('admin.products.index', ['owner_id' => $user->id]) }}" class="btn btn-sm btn-outline-info">عرض المنتجات</a>
+                            @endif
+                        @endif
+                        @if($filter === 'drivers' && $segment === 'new' && !$user->is_approved)
+                            <form method="POST" action="{{ route('admin.user.approve', $user->id) }}" class="d-inline"
+                                  onsubmit="return confirm('اعتماد حساب {{ $user->name }}؟');">
+                                @csrf
+                                <button class="btn btn-sm btn-success">اعتماد</button>
+                            </form>
+                        @endif
+                        <a href="{{ route('admin.user.delete', $user->id) }}" class="btn btn-sm btn-danger" onclick="return confirm('حذف؟')">حذف</a>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        @if($search !== '')
+                            لا توجد نتائج مطابقة لـ «{{ $search }}».
+                        @elseif($filter === 'drivers' && $segment === 'new')
+                            لا يوجد سائقون بانتظار المراجعة حالياً.
+                        @elseif($filter === 'drivers' && $segment === 'current')
+                            لا يوجد سائقون معتمدون حالياً.
+                        @else
+                            لا يوجد بيانات لعرضها حالياً.
+                        @endif
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+        @if(method_exists($users, 'links'))
+            {{ $users->links() }}
+        @endif
+    </div></div>
 </div>
-@endsection
-
-@section('scripts')
-<script>
-    $(document).ready(function () {
-        $('#usersTable').DataTable({
-            order: [[0, 'desc']],
-            pageLength: 25,
-            language: {
-                sEmptyTable:     "لا توجد بيانات متاحة في الجدول",
-                sLoadingRecords: "جارٍ التحميل...",
-                sProcessing:     "جارٍ المعالجة...",
-                sLengthMenu:     "أظهر _MENU_ مدخلات",
-                sZeroRecords:    "لم يتم العثور على نتائج",
-                sInfo:           "إظهار _START_ إلى _END_ من أصل _TOTAL_ مدخل",
-                sInfoEmpty:      "إظهار 0 إلى 0 من أصل 0 مدخل",
-                sInfoFiltered:   "(منتقاة من مجموع _MAX_ مدخل)",
-                sSearch:         "بحث:",
-                oPaginate: {
-                    sFirst:    "الأولى",
-                    sPrevious: "السابق",
-                    sNext:     "التالي",
-                    sLast:     "الأخيرة"
-                }
-            }
-        });
-    });
-</script>
-@endsection
-
-@section('styles')
-<style>
-    .nav-pills .nav-link {
-        border-radius: 999px;
-    }
-    .nav-pills .nav-link.active {
-        background-color: #e6910a;
-        border-color: #e6910a;
-    }
-</style>
 @endsection
